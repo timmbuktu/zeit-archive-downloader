@@ -2,9 +2,9 @@
   "name": "zeit-archive-downloader",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "tsx index.ts"
   },
   "repository": {
     "type": "git",
@@ -15,5 +15,15 @@
   "bugs": {
     "url": "https://github.com/timmbuktu/zeit-archive-downloader/issues"
   },
-  "homepage": "https://github.com/timmbuktu/zeit-archive-downloader#readme"
+  "homepage": "https://github.com/timmbuktu/zeit-archive-downloader#readme",
+  "devDependencies": {
+    "@types/content-disposition": "^0.5.9",
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.4"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "content-disposition": "^0.5.4",
+    "node-html-parser": "^7.0.1"
+  }
 }
