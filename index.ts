@@ -34,7 +34,7 @@ class AudioDownloader {
       headers: [["cookie", this.opts.authCookie]],
     });
     if (!response.ok) {
-      throw new Error(`Could not fetch url`);
+      throw new Error(`Could not fetch url: ${url}`);
     }
     const html = parse(await response.text());
     const maxPageHref =
@@ -58,16 +58,21 @@ class AudioDownloader {
           (value, index) => `${this.baseUrl}/abo/zeit-audio?page=${index + 1}`
         )
     );
+    const htmls = await Promise.all(
+      pages.map(async (page) => {
+        console.log(`Fetching audio page: ${page}`);
+        const response = await fetch(page, {
+          headers: [["cookie", this.opts.authCookie]],
+        });
+        if (!response.ok) {
+          throw new Error(`Could not fetch url: ${page}`);
+        }
+        const html = parse(await response.text());
+        return html;
+      })
+    );
     const downloadItems: AudioDownloadItem[] = [];
-    for (const page of pages) {
-      console.log(`Fetching audio page: ${page}`);
-      const response = await fetch(page, {
-        headers: [["cookie", this.opts.authCookie]],
-      });
-      if (!response.ok) {
-        throw new Error(`Could not fetch url`);
-      }
-      const html = parse(await response.text());
+    for (const html of htmls) {
       downloadItems.push(
         ...html
           .querySelectorAll("[href^=https://media-delivery.zeit.de/]")
@@ -109,7 +114,7 @@ class AudioDownloader {
         headers: [["cookie", this.opts.authCookie]],
       });
       if (!response.ok) {
-        throw new Error(`Could not fetch url`);
+        throw new Error(`Could not fetch url: ${item.url}`);
       }
       const filename = contentDisposition.parse(
         response.headers.get("content-disposition") ?? ""
