@@ -212,8 +212,8 @@ class AudioDownloader {
               );
             return {
               url: item.attributes["href"],
-              year: attributes["Jahr"].padStart(2, "0"),
-              edition: attributes["Ausgabe"],
+              year: attributes["Jahr"],
+              edition: attributes["Ausgabe"].padStart(2, "0"),
             };
           })
       )
