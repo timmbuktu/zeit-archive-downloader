@@ -7,10 +7,12 @@ import { HTMLElement, parse } from "node-html-parser";
 import { basename } from "path";
 import { Readable } from "stream";
 import { finished } from "stream/promises";
+import { createLogger, format, Logger, transports } from "winston";
 
 const fetchRetry = fetchRetryBuilder(fetch);
 
 interface DownloaderOptions {
+  logger: Logger;
   authCookie: string;
   basePath: string;
   years?: string[];
@@ -22,7 +24,27 @@ interface AudioDownloadItem {
   edition: string;
 }
 
+function getLogger(opts: { basePath: string }): Logger {
+  return createLogger({
+    level: "info",
+    format: format.combine(
+      format.timestamp(),
+      format.printf(
+        ({ level, message, timestamp }) =>
+          `${timestamp} ${level.toUpperCase()} ${message}`
+      )
+    ),
+    transports: [
+      new transports.File({
+        filename: `${opts.basePath}/zeit-archive-downloader.log`,
+      }),
+      new transports.Console(),
+    ],
+  });
+}
+
 async function fetchResponse(opts: {
+  logger: Logger;
   url: string;
   authCookie: string;
 }): Promise<Response> {
@@ -31,12 +53,15 @@ async function fetchResponse(opts: {
     retryOn: [502, 504],
   });
   if (!response.ok) {
-    throw new Error(`Could not fetch url: ${opts.url}`);
+    const message = `Could not fetch url: ${opts.url}`;
+    opts.logger.error(message);
+    throw new Error(message);
   }
   return response;
 }
 
 async function fetchHtml(opts: {
+  logger: Logger;
   url: string;
   authCookie: string;
 }): Promise<HTMLElement> {
@@ -46,6 +71,7 @@ async function fetchHtml(opts: {
 }
 
 async function fetchHtmlChunked(opts: {
+  logger: Logger;
   urls: string[];
   logInfo: string;
   authCookie: string;
@@ -54,9 +80,13 @@ async function fetchHtmlChunked(opts: {
   const urlsChunks = chunk(opts.urls, 100);
   for (let index = 0; index < urlsChunks.length; index++) {
     const urlsChunk = urlsChunks[index];
-    console.log(`${opts.logInfo} (chunk ${index + 1} of ${urlsChunks.length})`);
+    opts.logger.info(
+      `${opts.logInfo} (chunk ${index + 1} of ${urlsChunks.length})`
+    );
     const htmlsChunk = await Promise.all(
-      urlsChunk.map((url) => fetchHtml({ url, authCookie: opts.authCookie }))
+      urlsChunk.map((url) =>
+        fetchHtml({ logger: opts.logger, url, authCookie: opts.authCookie })
+      )
     );
     htmls.push(...htmlsChunk);
   }
@@ -64,6 +94,7 @@ async function fetchHtmlChunked(opts: {
 }
 
 async function downloadFile(opts: {
+  logger: Logger;
   index: number;
   count: number;
   response: Response;
@@ -78,7 +109,9 @@ async function downloadFile(opts: {
     ? contentDisposition.parse(contentDispositionHeader).parameters["filename"]
     : basename(opts.response.url);
   if (!filename) {
-    throw new Error("Could not identify filename");
+    const message = "Could not identify filename";
+    opts.logger.error(message);
+    throw new Error(message);
   }
   const directory = `${opts.basePath}/${opts.year}/${opts.edition}`;
   if (!existsSync(directory)) {
@@ -86,13 +119,13 @@ async function downloadFile(opts: {
   }
   const path = `${directory}/${filename}`;
   if (existsSync(path)) {
-    console.log(
+    opts.logger.info(
       `(${opts.index.toString().padStart(opts.count.toString().length, "0")}/${
         opts.count
       }) File already found: ${path}`
     );
   } else {
-    console.log(
+    opts.logger.info(
       `(${opts.index.toString().padStart(opts.count.toString().length, "0")}/${
         opts.count
       }) Downloading file: ${path}`
@@ -112,13 +145,17 @@ class AudioDownloader {
   public async execute(): Promise<void> {
     const maxPage = await this.identifyMaxPage();
     const downloadItems = await this.collectDownloadItems(maxPage);
-    console.log("Starting audio download");
+    this.opts.logger.info("Starting audio download");
     await this.downloadAll(downloadItems);
   }
 
   private async identifyMaxPage(): Promise<number> {
     const url = `${this.baseUrl}/abo/zeit-audio`;
-    const html = await fetchHtml({ url, authCookie: this.opts.authCookie });
+    const html = await fetchHtml({
+      logger: this.opts.logger,
+      url,
+      authCookie: this.opts.authCookie,
+    });
     const maxPageHref =
       html.querySelectorAll(".pager__page").at(-1)?.children[0].attributes[
         "href"
@@ -141,6 +178,7 @@ class AudioDownloader {
         )
     );
     const htmls = await fetchHtmlChunked({
+      logger: this.opts.logger,
       urls,
       logInfo: "Fetching audio information",
       authCookie: this.opts.authCookie,
@@ -188,10 +226,12 @@ class AudioDownloader {
     for (let index = 0; index < downloadItems.length; index++) {
       const item = downloadItems[index];
       const response = await fetchResponse({
+        logger: this.opts.logger,
         url: item.url,
         authCookie: this.opts.authCookie,
       });
       await downloadFile({
+        logger: this.opts.logger,
         index: index + 1,
         count: downloadItems.length,
         response,
@@ -222,13 +262,17 @@ class EPaperDownloader {
   public async execute(): Promise<void> {
     const ranges: EpaperRanges = await this.identifyRanges();
     const downloadItems = await this.collectDownloadItems(ranges);
-    console.log("Starting epaper download");
+    this.opts.logger.info("Starting epaper download");
     await this.downloadAll(downloadItems);
   }
 
   private async identifyRanges(): Promise<EpaperRanges> {
     const url = `${this.baseUrl}/abo/diezeit`;
-    const html = await fetchHtml({ url, authCookie: this.opts.authCookie });
+    const html = await fetchHtml({
+      logger: this.opts.logger,
+      url,
+      authCookie: this.opts.authCookie,
+    });
     const years: string[] =
       html
         .querySelector("select#year")
@@ -256,6 +300,7 @@ class EPaperDownloader {
       )
     );
     const searchHtmls = await fetchHtmlChunked({
+      logger: this.opts.logger,
       urls: searchUrls,
       logInfo: "Searching epaper information",
       authCookie: this.opts.authCookie,
@@ -272,6 +317,7 @@ class EPaperDownloader {
       .filter((item) => item !== undefined)
       .map((item) => `${this.baseUrl}${item}`);
     const epaperHtmls = await fetchHtmlChunked({
+      logger: this.opts.logger,
       urls: epaperUrls,
       logInfo: "Fetching epaper information",
       authCookie: this.opts.authCookie,
@@ -283,7 +329,9 @@ class EPaperDownloader {
         .substring(9, 16)
         .split("/");
       if (!teaser) {
-        throw new Error("Could not identify year and edition");
+        const message = "Could not identify year and edition";
+        this.opts.logger.error(message);
+        throw new Error(message);
       }
       return {
         urls: [
@@ -311,10 +359,12 @@ class EPaperDownloader {
       for (const url of item.urls) {
         index++;
         const response = await fetchResponse({
+          logger: this.opts.logger,
           url,
           authCookie: this.opts.authCookie,
         });
         await downloadFile({
+          logger: this.opts.logger,
           index,
           count,
           response,
@@ -329,17 +379,22 @@ class EPaperDownloader {
 
 async function execute(
   opts: DownloaderOptions,
-  switches: { audio: boolean; epaper: boolean }
+  switches: { audio: boolean; epaper: boolean; version: string }
 ) {
+  opts.logger.info(`Version: ${switches.version}`);
+  opts.logger.info(`Audio: ${switches.audio ? "yes" : "no"}`);
+  opts.logger.info(`Epaper: ${switches.epaper ? "yes" : "no"}`);
+  opts.logger.info(`Years: ${opts.years ? opts.years.join(", ") : "all"}`);
+  opts.logger.info(`Base path: ${opts.basePath}`);
   if (switches.audio) {
     await new AudioDownloader(opts).execute();
   } else {
-    console.log("Skipping audio download");
+    opts.logger.info("Skipping audio download");
   }
   if (switches.epaper) {
     await new EPaperDownloader(opts).execute();
   } else {
-    console.log("Skipping epaper download");
+    opts.logger.info("Skipping epaper download");
   }
 }
 
@@ -356,9 +411,14 @@ const options = program.opts();
 
 execute(
   {
+    logger: getLogger({ basePath: options.basePath }),
     authCookie: options.authCookie,
     basePath: options.basePath,
     years: options.years,
   },
-  { audio: options.audio, epaper: options.epaper }
+  {
+    audio: options.audio,
+    epaper: options.epaper,
+    version: program.version()!,
+  }
 );

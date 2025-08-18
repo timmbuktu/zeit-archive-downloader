@@ -27,6 +27,7 @@
     "content-disposition": "^0.5.4",
     "fetch-retry": "^6.0.0",
     "lodash": "^4.17.21",
-    "node-html-parser": "^7.0.1"
+    "node-html-parser": "^7.0.1",
+    "winston": "^3.17.0"
   }
 }
