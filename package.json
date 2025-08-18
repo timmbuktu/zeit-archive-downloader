@@ -18,12 +18,15 @@
   "homepage": "https://github.com/timmbuktu/zeit-archive-downloader#readme",
   "devDependencies": {
     "@types/content-disposition": "^0.5.9",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^24.3.0",
     "tsx": "^4.20.4"
   },
   "dependencies": {
     "commander": "^14.0.0",
     "content-disposition": "^0.5.4",
+    "fetch-retry": "^6.0.0",
+    "lodash": "^4.17.21",
     "node-html-parser": "^7.0.1"
   }
 }
