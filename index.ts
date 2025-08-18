@@ -234,13 +234,15 @@ class EPaperDownloader {
         .querySelector("select#year")
         ?.children.map((option) => option.getAttribute("value"))
         .filter((item) => item !== undefined)
+        .filter((item) => !!item)
         .filter((item) => !this.opts.years || this.opts.years.includes(item)) ??
       [];
     const editions: string[] =
       html
         .querySelector("select#issue")
         ?.children.map((option) => option.getAttribute("value"))
-        .filter((item) => item !== undefined) ?? [];
+        .filter((item) => item !== undefined)
+        .filter((item) => !!item) ?? [];
     return { years, editions };
   }
 
