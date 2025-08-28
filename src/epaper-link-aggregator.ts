@@ -21,7 +21,7 @@ export class EpaperLinkAggregator {
           ?.children.map((option) => option.getAttribute("value"))
           .filter((item) => item !== undefined)
           .filter((item) => !!item)
-          .filter((item) => years.includes(item)) ?? [],
+          .filter((item) => years.length === 0 || years.includes(item)) ?? [],
       editions:
         html
           .querySelector("select#issue")

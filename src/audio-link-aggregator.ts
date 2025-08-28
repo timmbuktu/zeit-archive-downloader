@@ -77,7 +77,7 @@ export class AudioLinkAggregator {
                 };
               })
           )
-          .filter((item) => years.includes(item.year)),
+          .filter((item) => years.length === 0 || years.includes(item.year)),
         (item) => `${item.year}-${item.edition}`
       )
     ).map((value) => ({
