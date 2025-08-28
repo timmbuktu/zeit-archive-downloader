@@ -1,6 +1,6 @@
 # zeit-archive-downloader
 
-CLI program to download and archive newspaper files from the german news website [ZEIT Online](https://www.zeit.de). The usage of this CLI program requires a premium subscription on ZEIT Online.
+CLI program to download and archive newspaper files from the german news website [ZEIT Online](https://www.zeit.de). The usage of this CLI program requires a premium subscription of ZEIT Online.
 
 ## Installation and usage
 
