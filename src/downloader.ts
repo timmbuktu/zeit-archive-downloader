@@ -79,7 +79,7 @@ export class Downloader {
         if (filenames[i] === filenames[j]) {
           filenames[j] = `${parse(filenames[j]).name}-${hitCount}${
             parse(filenames[j]).ext
-          }}`;
+          }`;
           hitCount++;
         }
       }
